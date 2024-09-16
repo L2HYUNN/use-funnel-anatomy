@@ -82,4 +82,52 @@ type CreateStep<
 
 export declare function createUseFunnel<
   TStepContextMap extends Record<string, any>
->(): () => void;
+>(): <
+  Steps extends {
+    [StepKey in keyof TStepContextMap]: CreateStep<
+      State<StepKey, TStepContextMap[StepKey]>,
+      {
+        [NextStepKey in Exclude<keyof TStepContextMap, StepKey>]: State<
+          NextStepKey,
+          TStepContextMap[NextStepKey]
+        >;
+      }[Exclude<keyof TStepContextMap, StepKey>]
+    >;
+  }
+>(_: {
+  steps: Steps;
+}) => void;
+
+const useFunnel = createUseFunnel<{
+  이름_입력: { 이름?: string };
+  주민등록번호_입력: { 이름: string };
+  휴대폰번호_입력: { 이름: string; 주민등록번호: string };
+}>();
+
+useFunnel({
+  steps: {
+    이름_입력: (step) =>
+      step
+        .events({
+          이름_입력_완료(payload: { 이름: string }, { context, transition }) {
+            return transition("주민등록번호_입력");
+          },
+        })
+        .render(({ dispatch }) => {
+          return (
+            <button
+              onClick={() =>
+                dispatch({
+                  type: "이름_입력_완료",
+                  payload: {
+                    이름: "홍길동",
+                  },
+                })
+              }
+            />
+          );
+        }),
+    주민등록번호_입력: (step) => step.render(() => null),
+    휴대폰번호_입력: (step) => step.render(() => null),
+  },
+});
