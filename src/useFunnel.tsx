@@ -1,4 +1,5 @@
 import React from "react";
+import { CompareMergeContext } from "./typeUtil";
 
 type EventObject = { type: string; payload: any };
 
@@ -25,8 +26,16 @@ type StateRender<
   }) => React.ReactNode
 ) => StateRenderResult<TState, TNextState, TEvent>;
 
-type A = { type: "A"; payload: number } | { type: "B"; payload: boolean };
-type _ = Extract<A, { type: "A" }>["payload"];
+type TransitionFn<
+  TState extends State<any, any>,
+  TNextState extends State<any, any>
+> = <TName extends TNextState["name"]>(
+  target: TName,
+  context: CompareMergeContext<
+    TState["context"],
+    Extract<TNextState, { name: TName }>["context"]
+  >
+) => void;
 
 interface Step<
   TState extends State<any, any>,
@@ -39,7 +48,7 @@ interface Step<
       payload: TPayload,
       _: {
         context: TState["context"];
-        transition: (target: TNextState["name"]) => void;
+        transition: TransitionFn<TState, TNextState>;
       }
     ) => void
   ) => Step<
@@ -54,7 +63,7 @@ interface Step<
         payload: any,
         _: {
           context: TState["context"];
-          transition: (target: TNextState["name"]) => void;
+          transition: TransitionFn<TState, TNextState>;
         }
       ) => void
     >
@@ -96,38 +105,10 @@ export declare function createUseFunnel<
   }
 >(_: {
   steps: Steps;
-}) => void;
-
-const useFunnel = createUseFunnel<{
-  이름_입력: { 이름?: string };
-  주민등록번호_입력: { 이름: string };
-  휴대폰번호_입력: { 이름: string; 주민등록번호: string };
-}>();
-
-useFunnel({
-  steps: {
-    이름_입력: (step) =>
-      step
-        .events({
-          이름_입력_완료(payload: { 이름: string }, { context, transition }) {
-            return transition("주민등록번호_입력");
-          },
-        })
-        .render(({ dispatch }) => {
-          return (
-            <button
-              onClick={() =>
-                dispatch({
-                  type: "이름_입력_완료",
-                  payload: {
-                    이름: "홍길동",
-                  },
-                })
-              }
-            />
-          );
-        }),
-    주민등록번호_입력: (step) => step.render(() => null),
-    휴대폰번호_입력: (step) => step.render(() => null),
-  },
-});
+  initial: {
+    [key in keyof TStepContextMap]: {
+      step: key;
+      context: TStepContextMap[key];
+    };
+  }[keyof TStepContextMap];
+}) => React.ReactNode;
